@@ -13,25 +13,29 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 PLANS_DIR = "plans"
 os.makedirs(PLANS_DIR, exist_ok=True)
 
-def play_sound():
-    """Plays a native alert sound based on operating system."""
+def play_sound(task_name="Task"):
+    """Triggers an audio alert using Mac native text-to-speech sound system."""
     try:
-        if os.path.exists("/System/Library/Sounds/Glass.aiff"):
-            subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"], check=False)
-        elif os.name == 'nt':
-            import winsound
-            winsound.Beep(1000, 1000)
-        else:
-            print("\a")
+        # 1. Play native macOS Glass chime
+        subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"], check=False)
+        # 2. Spoken alert banner
+        subprocess.run(["say", f"Task alert: {task_name}"], check=False)
     except Exception:
-        print("\a")
+        print("\a\a\a") # Fallback terminal beep
+
+def parse_time(time_str):
+    """Converts a time string like '10:36 PM' to a datetime object for accurate time comparisons."""
+    try:
+        return datetime.strptime(time_str.strip(), "%I:%M %p").time()
+    except ValueError:
+        return None
 
 def generate_ai_schedule(raw_input, date_label):
     current_time_hint = datetime.now().strftime("%I:%M %p")
     prompt = f"""
     You are MyTaskFlow AI, an elite productivity assistant.
     Take the following raw, unorganized tasks/thoughts and organize them into an optimal schedule for {date_label}.
-    IMPORTANT: The current time right now is {current_time_hint}. Make sure at least one task's time slot matches or starts right around {current_time_hint} so the user can test the live monitor alert immediately.
+    IMPORTANT: The current time right now is {current_time_hint}. Make sure at least one task's time slot covers the current time ({current_time_hint}) so the user can test the live monitor alert immediately.
     
     Raw Input:
     {raw_input}
@@ -41,7 +45,7 @@ def generate_ai_schedule(raw_input, date_label):
       "schedule_date": "{date_label}",
       "schedule": [
         {{
-          "time_slot": "{current_time_hint} - 11:00 PM",
+          "time_slot": "10:30 PM - 11:00 PM",
           "task": "Task name",
           "priority": "High/Medium/Low",
           "category": "Work/Personal/Health/Admin",
@@ -53,7 +57,6 @@ def generate_ai_schedule(raw_input, date_label):
     }}
     """
 
-    # Retry loop specifically for 503 high-demand bursts on gemini-3.8-flash
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -67,7 +70,6 @@ def generate_ai_schedule(raw_input, date_label):
             return response.text
         except Exception as e:
             if attempt < max_retries - 1:
-                print(f"⚠️ API busy, retrying in 2 seconds... (Attempt {attempt + 1}/{max_retries})")
                 time.sleep(2)
             else:
                 raise e
@@ -134,25 +136,48 @@ def start_live_monitor():
     print(f"Current local time: {datetime.now().strftime('%I:%M %p')}")
     print("Press Ctrl+C at any time to exit the monitor.\n")
     
+    triggered_tasks = set()
+
     try:
         while True:
-            current_time_str = datetime.now().strftime("%I:%M %p")
+            now = datetime.now()
+            current_time = now.time()
+            current_str = now.strftime("%I:%M %p")
             
             for item in data.get("schedule", []):
+                task_name = item.get("task", "Task")
                 slot = item.get("time_slot", "")
-                if current_time_str.lower() in slot.lower():
+                
+                # Check if current time string is anywhere in slot OR perform range check
+                parts = slot.split("-")
+                in_range = False
+                
+                if len(parts) == 2:
+                    start_t = parse_time(parts[0])
+                    end_t = parse_time(parts[1])
+                    if start_t and end_t and start_t <= current_time <= end_t:
+                        in_range = True
+                elif current_str.lower() in slot.lower():
+                    in_range = True
+
+                if in_range and task_name not in triggered_tasks:
                     print("\n" + "!"*60)
-                    print(f" 🚨 TASK ALERT! TIME FOR: {item.get('task')}")
+                    print(f" 🚨 TASK ALERT! TIME FOR: {task_name}")
                     print(f" 🕒 Slot: {slot} | Category: {item.get('category')}")
                     print(f" 💡 Tip: {item.get('quick_tip')}")
                     print("!"*60 + "\n")
                     
-                    play_sound()
-                    time.sleep(60)
+                    play_sound(task_name)
+                    triggered_tasks.add(task_name)
                     
-            time.sleep(30)
+            time.sleep(10)
     except KeyboardInterrupt:
         print("\n🛑 Live Task Monitor stopped.")
+
+def test_sound_now():
+    print("\n🔊 Testing audio ringtone and voice alert...")
+    play_sound("Test Ringtone Task")
+    print("✅ Sound test completed!\n")
 
 if __name__ == "__main__":
     check_morning_reminder()
@@ -161,14 +186,17 @@ if __name__ == "__main__":
     print("  [1] Plan Today's Tasks (Instant / Test Mode)")
     print("  [2] Plan Tomorrow's Tasks (Evening Mode)")
     print("  [3] Start Live Task Monitor with Audio Alerts")
-    print("  [4] Exit")
+    print("  [4] Test Audio Alert Ringtone Immediately")
+    print("  [5] Exit")
     
-    choice = input("\nEnter choice (1, 2, 3, or 4): ").strip()
+    choice = input("\nEnter choice (1, 2, 3, 4, or 5): ").strip()
     if choice == '1':
         create_plan_for_date(date.today().isoformat(), "Today")
     elif choice == '2':
         create_plan_for_date((date.today() + timedelta(days=1)).isoformat(), "Tomorrow")
     elif choice == '3':
         start_live_monitor()
+    elif choice == '4':
+        test_sound_now()
     else:
         print("Have a productive day!")
