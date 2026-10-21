@@ -16,15 +16,12 @@ os.makedirs(PLANS_DIR, exist_ok=True)
 def play_sound(task_name="Task"):
     """Triggers an audio alert using Mac native text-to-speech sound system."""
     try:
-        # 1. Play native macOS Glass chime
         subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"], check=False)
-        # 2. Spoken alert banner
         subprocess.run(["say", f"Task alert: {task_name}"], check=False)
     except Exception:
-        print("\a\a\a") # Fallback terminal beep
+        print("\a\a\a")
 
 def parse_time(time_str):
-    """Converts a time string like '10:36 PM' to a datetime object for accurate time comparisons."""
     try:
         return datetime.strptime(time_str.strip(), "%I:%M %p").time()
     except ValueError:
@@ -35,7 +32,7 @@ def generate_ai_schedule(raw_input, date_label):
     prompt = f"""
     You are MyTaskFlow AI, an elite productivity assistant.
     Take the following raw, unorganized tasks/thoughts and organize them into an optimal schedule for {date_label}.
-    IMPORTANT: The current time right now is {current_time_hint}. Make sure at least one task's time slot covers the current time ({current_time_hint}) so the user can test the live monitor alert immediately.
+    IMPORTANT: The current time right now is {current_time_hint}. Make sure at least one task's time slot covers the current time ({current_time_hint}) if planning for today.
     
     Raw Input:
     {raw_input}
@@ -45,11 +42,13 @@ def generate_ai_schedule(raw_input, date_label):
       "schedule_date": "{date_label}",
       "schedule": [
         {{
-          "time_slot": "10:30 PM - 11:00 PM",
+          "id": 1,
+          "time_slot": "09:00 AM - 10:00 AM",
           "task": "Task name",
           "priority": "High/Medium/Low",
           "category": "Work/Personal/Health/Admin",
-          "quick_tip": "Actionable tip to complete efficiently"
+          "quick_tip": "Actionable tip to complete efficiently",
+          "completed": false
         }}
       ],
       "top_3_priorities": ["Priority 1", "Priority 2", "Priority 3"],
@@ -85,10 +84,48 @@ def check_morning_reminder():
         
         with open(today_file, "r") as f:
             data = json.load(f)
-            print(json.dumps(data, indent=2))
+            
+        for item in data.get("schedule", []):
+            status = "✅" if item.get("completed") else "⏳"
+            print(f"{status} [{item.get('id', '-')}] {item.get('time_slot')}: {item.get('task')}")
+            
+        print("\n💡 Quote:", data.get("productivity_quote", ""))
         print("\n" + "="*60 + "\n")
     else:
         print(f"\nℹ️ No plan found for today ({today}).")
+
+def mark_task_complete():
+    today = date.today().isoformat()
+    today_file = os.path.join(PLANS_DIR, f"plan_{today}.json")
+    
+    if not os.path.exists(today_file):
+        print("❌ No plan found for today to update.")
+        return
+
+    with open(today_file, "r") as f:
+        data = json.load(f)
+
+    schedule = data.get("schedule", [])
+    if not schedule:
+        print("No tasks found.")
+        return
+
+    print("\nCurrent Tasks:")
+    for idx, item in enumerate(schedule, start=1):
+        status = "✅ Done" if item.get("completed") else "⏳ Pending"
+        print(f"  [{idx}] {item.get('task')} ({status})")
+
+    choice = input("\nEnter task number to mark complete: ").strip()
+    if choice.isdigit():
+        task_idx = int(choice) - 1
+        if 0 <= task_idx < len(schedule):
+            schedule[task_idx]["completed"] = True
+            data["schedule"] = schedule
+            with open(today_file, "w") as f:
+                json.dump(data, f, indent=2)
+            print(f"🎉 Marked '{schedule[task_idx]['task']}' as complete!")
+        else:
+            print("Invalid task number.")
 
 def create_plan_for_date(target_date, title_label):
     print(f"\n⚡ === Create Plan for {title_label} ({target_date}) ===")
@@ -116,8 +153,6 @@ def create_plan_for_date(target_date, title_label):
             json.dump(parsed, f, indent=2)
             
         print(f"✅ Successfully saved plan to '{plan_file}'!")
-        print("\nHere is your finalized plan:")
-        print(json.dumps(parsed, indent=2))
     else:
         print("No tasks entered. Plan discarded.")
 
@@ -126,7 +161,7 @@ def start_live_monitor():
     today_file = os.path.join(PLANS_DIR, f"plan_{today}.json")
     
     if not os.path.exists(today_file):
-        print(f"\n❌ No plan found for today ({today}). Please create today's plan first using option [1]!")
+        print(f"\n❌ No plan found for today ({today}). Please create today's plan first!")
         return
 
     with open(today_file, "r") as f:
@@ -144,11 +179,17 @@ def start_live_monitor():
             current_time = now.time()
             current_str = now.strftime("%I:%M %p")
             
+            # Reload to capture any completed task updates
+            with open(today_file, "r") as f:
+                data = json.load(f)
+
             for item in data.get("schedule", []):
+                if item.get("completed"):
+                    continue
+
                 task_name = item.get("task", "Task")
                 slot = item.get("time_slot", "")
                 
-                # Check if current time string is anywhere in slot OR perform range check
                 parts = slot.split("-")
                 in_range = False
                 
@@ -174,22 +215,17 @@ def start_live_monitor():
     except KeyboardInterrupt:
         print("\n🛑 Live Task Monitor stopped.")
 
-def test_sound_now():
-    print("\n🔊 Testing audio ringtone and voice alert...")
-    play_sound("Test Ringtone Task")
-    print("✅ Sound test completed!\n")
-
-if __name__ == "__main__":
+def main():
     check_morning_reminder()
     
     print("What would you like to do?")
-    print("  [1] Plan Today's Tasks (Instant / Test Mode)")
+    print("  [1] Plan Today's Tasks")
     print("  [2] Plan Tomorrow's Tasks (Evening Mode)")
     print("  [3] Start Live Task Monitor with Audio Alerts")
-    print("  [4] Test Audio Alert Ringtone Immediately")
+    print("  [4] Mark Task as Completed")
     print("  [5] Exit")
     
-    choice = input("\nEnter choice (1, 2, 3, 4, or 5): ").strip()
+    choice = input("\nEnter choice (1-5): ").strip()
     if choice == '1':
         create_plan_for_date(date.today().isoformat(), "Today")
     elif choice == '2':
@@ -197,6 +233,9 @@ if __name__ == "__main__":
     elif choice == '3':
         start_live_monitor()
     elif choice == '4':
-        test_sound_now()
+        mark_task_complete()
     else:
         print("Have a productive day!")
+
+if __name__ == "__main__":
+    main()
