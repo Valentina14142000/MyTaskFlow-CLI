@@ -1,0 +1,39 @@
+{
+  "schedule_date": "2026-10-22",
+  "schedule": [
+    {
+      "time_slot": "04:30 PM - 05:00 PM",
+      "task": "Review recipe and check ingredients",
+      "priority": "Medium",
+      "category": "Personal",
+      "quick_tip": "Ensure all spices, marinades, and sides are ready to avoid last-minute store runs."
+    },
+    {
+      "time_slot": "05:00 PM - 05:30 PM",
+      "task": "Prep and marinate chicken",
+      "priority": "High",
+      "category": "Personal",
+      "quick_tip": "Pat the chicken dry with paper towels before seasoning for better flavor absorption and crispiness."
+    },
+    {
+      "time_slot": "06:30 PM - 07:30 PM",
+      "task": "Cook chicken and prepare accompaniments",
+      "priority": "High",
+      "category": "Health",
+      "quick_tip": "Use a meat thermometer to ensure an internal temperature of 165\u00b0F (74\u00b0C) without drying it out."
+    },
+    {
+      "time_slot": "07:30 PM - 08:15 PM",
+      "task": "Dine and complete kitchen cleanup",
+      "priority": "Low",
+      "category": "Personal",
+      "quick_tip": "Soak cookware immediately after plating to make cleanup effortless."
+    }
+  ],
+  "top_3_priorities": [
+    "Safely prep and season chicken",
+    "Cook thoroughly to target temperature",
+    "Clean and sanitize kitchen prep areas"
+  ],
+  "productivity_quote": "Excellence is not an act, but a habit; prep well to perform well."
+}
