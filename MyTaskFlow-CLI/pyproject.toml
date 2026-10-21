@@ -15,4 +15,4 @@ dependencies = [
 ]
 
 [project.scripts]
-mytaskflow = "main:main"
+mytaskflow = "mytaskflow.main:main"

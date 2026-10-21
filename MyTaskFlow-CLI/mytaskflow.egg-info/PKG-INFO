@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: mytaskflow
+Version: 0.1.0
+Summary: A terminal-based AI productivity assistant with proactive audio reminders and daily planning.
+Author: Valentina Yuda Kiyungi
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: google-genai
+Requires-Dist: python-dotenv

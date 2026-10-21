@@ -1,0 +1,2 @@
+[console_scripts]
+mytaskflow = main:main
