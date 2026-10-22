@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mytaskflow"
+version = "0.1.0"
+description = "A terminal-based AI productivity assistant with proactive audio reminders and daily planning."
+readme = "README.md"
+authors = [{ name = "Valentina Yuda Kiyungi" }]
+requires-python = ">=3.10"
+dependencies = [
+    "google-genai",
+    "python-dotenv"
+]
+
+[project.scripts]
+mytaskflow = "main:main"
